@@ -1,0 +1,1 @@
+docker run --rm -ti -v `pwd`:/app black_hat_rust/ch12_linux_aarch64
