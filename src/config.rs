@@ -11,6 +11,7 @@ pub struct Config {
 pub struct Tokens {
   pub discord: String,
   pub google: String,
+  pub wit: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]

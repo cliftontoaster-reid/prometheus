@@ -4,6 +4,7 @@ pub mod discord;
 pub mod safety;
 pub mod utils;
 pub mod wit;
+pub mod art;
 
 use std::process;
 
@@ -14,6 +15,7 @@ use toml::{from_str, to_string_pretty};
 use discord::DiscordClient;
 use db::Client as DBClient;
 use serenity::{prelude::Client as SerenityClient, model::gateway::GatewayIntents};
+use wit::Client as NLUClient;
 
 #[tokio::main]
 async fn main() {
@@ -55,10 +57,7 @@ async fn main() {
 
   let database_client = DBClient::connect(config.databases.surrealdb, (config.auth.surrealdb_login, config.auth.surrealdb_password), config.databases.redis).await;
   
-  let client = DiscordClient {
-    db: database_client,
-    google_key: config.tokens.google,
-  };
+  let client = DiscordClient {db:database_client,google_key:config.tokens.google, wit: NLUClient{ token: config.tokens.wit } };
 
   let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 

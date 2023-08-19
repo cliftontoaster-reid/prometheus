@@ -29,27 +29,28 @@ pub async fn check_malicious(google_token: &String, ctx: &Context, msg: &Message
         links_show.push(m.threat.url.as_str().replace("/", ">").to_owned());
       }
 
-      let message = format!("We hope this message finds you well. We are writing to bring to your attention a matter of immediate importance. Please be advised that we have identified certain links that require your urgent attention. These links are indicated as follows: {}. 
+      let links_formated = concatenate_with_and(links_show);
+      let platforms_formated = platforms.join("\n- ");
+      let threats_formated = concatenate_with_and(threats);
 
-It has come to our attention that the platforms {} have flagged these links due to potential hazards associated with them, primarily linked to concerns related to {}. 
+      let message = format!("Greetings and good fortune be upon thee,
+
+May this correspondence reach thee in the best of health and spirits. We humbly scribe to thee, urgently laying forth a matter of gravest concern. It is with utmost respect that we present these identified links for thy immediate consideration:
       
-In an effort to prioritize user safety and security, we have taken the initiative to modify the links by replacing all occurrences of \"/\" with \">\" in order to render them non-clickable. This additional layer of caution is designed to deter accidental clicks and to enhance the overall safety of recipients.
+- {links_formated}
       
-Moreover, we would like to emphasize that our automated system is programmed to never send out links unless explicitly prompted by a command. If you receive any unsolicited link from this system, kindly disregard it as it may have been compromised or manipulated for malicious intent.
+Our vigilance hath discovered these links, casting shadows of potential peril. The platforms of {platforms_formated}, in their wisdom, have raised warnings of {threats_formated} that may lurk therein.
       
-We sincerely appreciate your swift cooperation in addressing this matter. Your immediate action is invaluable in helping us ensure the continued security and well-being of our recipients.
+Furthermore, it is of great import to declare that our loyal automaton, by its design, doth not dispatch links without thy explicit directive. Should an unsolicited link assail thy senses, we beseech thee to dismiss it, for it might be tainted with nefarious designs.
       
-Thank you for your understanding and vigilance in this regard.
+In gratitude, we commend thy swift action in attending to this pressing matter. Thy response shall stand as a bulwark safeguarding the security and tranquility of our esteemed recipients.
       
-Best Regards,
+With the utmost esteem and consideration,
       
 Clifton Toaster Reid
-Prometheus Team", 
-        concatenate_with_and(links_show),
-        concatenate_with_and(platforms),
-        concatenate_with_and(threats));
+Bearer of the Prometheus Banner");
 
-      msg.reply(ctx, message).await.unwrap();
+      msg.reply(&ctx.http, message).await.unwrap();
     }
     malicious
   } else {
