@@ -2,9 +2,9 @@ pub mod discord;
 
 use reqwest::Client as ReqwestCLient;
 use serde::{Deserialize, Serialize};
-use urlencoding::encode;
 use serde_json::from_str;
 use toml::to_string_pretty;
+use urlencoding::encode;
 
 pub async fn check_url(urls: Vec<String>, key: String) -> Response {
   let cl = ReqwestCLient::new();
@@ -30,16 +30,22 @@ pub async fn check_url(urls: Vec<String>, key: String) -> Response {
       threat_entries: entries,
     },
   };
+  #[cfg(debug_assertions)]
   println!("{}", to_string_pretty(&data).unwrap());
-  let res = cl.post(format!(
-    "https://safebrowsing.googleapis.com/v4/threatMatches:find?key={}",
-    encode(&key)
-  ))
-  .header("Content-Type", "application/json")
-  .json(&data)
-  .send()
-  .await
-  .unwrap().text().await.unwrap();
+  let res = cl
+    .post(format!(
+      "https://safebrowsing.googleapis.com/v4/threatMatches:find?key={}",
+      encode(&key)
+    ))
+    .header("Content-Type", "application/json")
+    .json(&data)
+    .send()
+    .await
+    .unwrap()
+    .text()
+    .await
+    .unwrap();
+  #[cfg(debug_assertions)]
   println!("{}", &res);
   if res == "{}" {
     Response::default()

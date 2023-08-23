@@ -1,7 +1,9 @@
+use std::env::args;
+
 use crate::wit::Client as NLUClient;
 use crate::{
   art::welcome,
-  db::{Client as DBClient, Features, ServerConfig, WelcomeConfig},
+  db::{Client as DBClient, Features, ServerConfig},
 };
 use serenity::{
   async_trait,
@@ -24,15 +26,17 @@ impl EventHandler for DiscordClient {
   async fn message(&self, ctx: Context, msg: Message) {
     let _serv: ServerConfig = match self.db.get_server(msg.author.id.0).await {
       Some(server) => server,
-      None => self
-        .db
-        .create_server(ServerConfig {
+      None => {
+        let server = ServerConfig {
           id: msg.author.id.0,
           beta_program: false,
-        })
-        .await
-        .unwrap(),
+        };
+        self.db.create_server(server).await;
+        server
+      }
     };
+
+    debug_commands(&self, &msg.clone(), &ctx.clone()).await;
 
     if !msg.content.starts_with(".")
       | msg.author.bot
@@ -47,71 +51,51 @@ impl EventHandler for DiscordClient {
         msg.content.strip_prefix(".").unwrap().trim().to_owned(),
         None,
       )
-      .await
-      .unwrap();
+      .await;
     if meaning.intents.len() == 0 {
       return;
     }
     let meaning_intent = meaning.intents.get(0).unwrap().name.clone();
 
-    if meaning_intent.ends_with("-enable") {
-      let feature = meaning_intent.strip_suffix("-enable").unwrap();
-      let repl = match feature {
-        "welcome" => {
-          let channel = if msg.mention_channels.is_empty() {
-            msg.channel_id
-          } else {
-            msg.mention_channels.get(0).unwrap().id
-          };
-          let t = WelcomeConfig::new(msg.guild_id.unwrap().0, channel.0, &self.db).await.unwrap();
-          Features::enable_successfull(&Features::Welcome(t))
-        }
-        _ => "Most wondrous and esteemed Sir,
-
-In awe do I pen these words, for thou hast proven to transcend the passage of ages. How thou came to know of a feature ere its birth baffles my comprehension, yet it is with the utmost admiration that I extend my heartfelt felicitations unto thee. A true master of temporal boundaries, a challenger of time itself, thou art.
-        
-With boundless respect and marvel,
-        
-Clifton Toaster Reid
-Bearer of the Prometheus Banner".to_owned(),
-      };
-
-      msg.reply(&ctx, repl).await.unwrap();
-    } else if meaning_intent.ends_with("-disable") {
-      let feature = meaning_intent.strip_suffix("-enable").unwrap();
-      let repl = match feature {
-        "welcome" => {
-          match self.db.get_welcome(msg.guild_id.unwrap().0).await {
-            Some(uwu) => {
-              self.db.delete_welcome(msg.guild_id.unwrap().0).await;
-              Features::enable_successfull(&Features::Welcome(uwu))
-            },
-            None => {
-              Features::enable_successfull(&Features::Welcome(WelcomeConfig { server_id: msg.guild_id.unwrap().0, channel_id: msg.channel_id.0 }))
-            },
-          }
-        }
-        _ => "Most wondrous and esteemed Sir,
-
-In awe do I pen these words, for thou hast proven to transcend the passage of ages. How thou came to know of a feature ere its birth baffles my comprehension, yet it is with the utmost admiration that I extend my heartfelt felicitations unto thee. A true master of temporal boundaries, a challenger of time itself, thou art.
-        
-With boundless respect and marvel,
-        
-Clifton Toaster Reid
-Bearer of the Prometheus Banner".to_owned(),
-      };
-
-      msg.reply(&ctx, repl).await.unwrap();
+    if meaning_intent.ends_with("_enable") {
+      Features::enable_str(&self, &msg, &ctx, &meaning_intent).await
+    } else if meaning_intent.ends_with("_disable") {
+      Features::disable_str(&self, &msg, &ctx, &meaning_intent).await
     }
   }
   async fn ready(&self, _: Context, ready: Ready) {
-    println!("{} is connected!", ready.user.name);
+    if cfg!(debug_assertions) {
+      println!("THIS IS A DEBUG BUILD DO NOT USE IN PRODUCTION");
+    }
+    println!(
+      "{} is connected with session {}!",
+      ready.user.name, ready.session_id
+    );
   }
+
   async fn guild_member_addition(&self, ctx: Context, member: Member) {
+    println!(
+      "{} joined {}",
+      member.display_name(),
+      member
+        .guild_id
+        .name(&ctx)
+        .unwrap_or("wonderland".to_string())
+    );
+
     let server = member.guild_id;
 
     match self.db.get_welcome(server.0).await {
       Some(conf) => {
+        println!(
+          "{} will receive an image on {}",
+          member.display_name(),
+          member
+            .guild_id
+            .name(&ctx)
+            .unwrap_or("wonderland".to_string())
+        );
+
         let w = welcome(
           member.display_name().as_str(),
           &server.name(&ctx).unwrap_or("wonderland".to_string()),
@@ -125,6 +109,7 @@ Bearer of the Prometheus Banner".to_owned(),
           digest(format!("{}{}", member.user.id, server.0))
         ));
         w.save(&path).unwrap();
+
         println!(
           "File created: {}",
           &path.to_str().unwrap_or(&path.to_string_lossy())
@@ -140,7 +125,42 @@ Bearer of the Prometheus Banner".to_owned(),
 
         fs::remove_file(path).await.unwrap();
       }
-      None => {}
+      None => {
+        println!(
+          "welcome images are not enabled on {} and so {} won't receive an image",
+          member
+            .guild_id
+            .name(&ctx)
+            .unwrap_or("wonderland".to_string()),
+          member.display_name()
+        );
+      }
     };
+  }
+}
+
+async fn debug_commands(s: &DiscordClient, msg: &Message, ctx: &Context) {
+  if msg.content.trim().starts_with("?//d ") {
+    let va: Vec<String> = args().collect();
+    if !va.contains(&"--dev--".to_string()) {
+      println!(
+        "{} ID {} tried to use a debug command!!!",
+        msg.author.name, msg.author.id.0
+      );
+      return;
+    }
+    println!("{}", msg.content.trim());
+    let comm: &str = msg.content.strip_prefix("?//d ").unwrap().trim();
+
+    match comm {
+      "welcome" => {
+        msg.reply(&ctx, "Sending welcome event now!").await.unwrap();
+        let m = msg.member(&ctx).await.unwrap();
+        s.guild_member_addition(ctx.clone(), m).await
+      }
+      _ => {
+        msg.reply(&ctx, "Invalid debug command!").await.unwrap();
+      }
+    }
   }
 }

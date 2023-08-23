@@ -1,10 +1,7 @@
-use image::{imageops::overlay, load_from_memory, DynamicImage, Pixel, Rgba, EncodableLayout};
+use image::{imageops::overlay, load_from_memory, DynamicImage, EncodableLayout, Pixel, Rgba};
 use imageproc::drawing::draw_text_mut;
-use rand::{
-  seq::SliceRandom,
-  thread_rng
-};
-use rusttype::{Font, Scale, point};
+use rand::{seq::SliceRandom, thread_rng};
+use rusttype::{point, Font, Scale};
 use std::cmp::min;
 
 pub fn background_image() -> DynamicImage {
@@ -29,11 +26,7 @@ pub async fn download_image(uri: &str, default: Vec<u8>) -> DynamicImage {
       .unwrap_or(default.clone().into())
       .to_vec(),
   )
-  .unwrap_or(
-    load_from_memory(
-      default.as_bytes()
-    ).unwrap()
-  )
+  .unwrap_or(load_from_memory(default.as_bytes()).unwrap())
 }
 
 pub async fn welcome(name: &str, server: &str, avatar: &str) -> DynamicImage {

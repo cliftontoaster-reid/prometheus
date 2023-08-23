@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct Config {
@@ -17,11 +17,12 @@ pub struct Tokens {
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct DatabasesURIs {
   pub redis: String,
-  pub surrealdb: String
+  pub postresql: String,
+  pub postresql_dbname: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct DatabaseAuthentificationTokens {
-  pub surrealdb_login: String,
-  pub surrealdb_password: String,
+  pub postresql_login: String,
+  pub postresql_password: String,
 }

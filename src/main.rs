@@ -1,24 +1,25 @@
+pub mod art;
 pub mod config;
 pub mod db;
 pub mod discord;
 pub mod safety;
 pub mod utils;
 pub mod wit;
-pub mod art;
-
-use std::process;
 
 use config::Config;
+use db::Client as DBClient;
 use dirs::config_dir;
+use discord::DiscordClient;
+use serenity::{model::gateway::GatewayIntents, prelude::Client as SerenityClient};
+use std::{env::args, process};
 use tokio::fs::{create_dir, read_to_string, write};
 use toml::{from_str, to_string_pretty};
-use discord::DiscordClient;
-use db::Client as DBClient;
-use serenity::{prelude::Client as SerenityClient, model::gateway::GatewayIntents};
 use wit::Client as NLUClient;
 
 #[tokio::main]
 async fn main() {
+  let va: Vec<String> = args().collect();
+  println!("Starting with arguments {:?}", va);
   let mut config_file_path = config_dir().unwrap();
   config_file_path.push("toast_n_co");
   if !config_file_path.exists() {
@@ -55,12 +56,28 @@ async fn main() {
     }
   };
 
-  let database_client = DBClient::connect(config.databases.surrealdb, (config.auth.surrealdb_login, config.auth.surrealdb_password), config.databases.redis).await;
-  
-  let client = DiscordClient {db:database_client,google_key:config.tokens.google, wit: NLUClient{ token: config.tokens.wit } };
+  let database_client: DBClient = DBClient::connect(
+    config.databases.postresql,
+    (config.auth.postresql_login, config.auth.postresql_password),
+    config.databases.postresql_dbname,
+    config.databases.redis,
+  )
+  .await;
+  let client: DiscordClient = DiscordClient {
+    db: database_client,
+    google_key: config.tokens.google,
+    wit: NLUClient {
+      token: config.tokens.wit,
+    },
+  };
+  let intents: GatewayIntents = GatewayIntents::GUILDS
+    | GatewayIntents::GUILD_MESSAGES
+    | GatewayIntents::MESSAGE_CONTENT
+    | GatewayIntents::GUILD_MEMBERS;
 
-  let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
-
-  let mut ser_client = SerenityClient::builder(config.tokens.discord, intents).event_handler(client).await.unwrap();
+  let mut ser_client = SerenityClient::builder(config.tokens.discord, intents)
+    .event_handler(client)
+    .await
+    .unwrap();
   ser_client.start_autosharded().await.unwrap();
 }

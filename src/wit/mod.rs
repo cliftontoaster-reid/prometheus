@@ -1,5 +1,6 @@
 use reqwest::Client as ReqwestClient;
 use serde::{Deserialize, Serialize};
+use serde_json::from_str;
 use std::collections::HashMap;
 use urlencoding::encode;
 
@@ -8,11 +9,7 @@ pub struct Client {
 }
 
 impl Client {
-  pub async fn message(
-    &self,
-    msg: String,
-    dynamic_entity: Option<DynamicEntitiesList>,
-  ) -> Result<Message, Error> {
+  pub async fn message(&self, msg: String, dynamic_entity: Option<DynamicEntitiesList>) -> Message {
     let cl = ReqwestClient::new();
     let entity_string = if dynamic_entity.is_some() {
       encode(&serde_json::to_string(&dynamic_entity).unwrap_or("".to_string())).to_string()
@@ -25,14 +22,18 @@ impl Client {
       encode(&msg),
       entity_string
     );
-    cl.get(url)
+    let text = cl
+      .get(url)
       .header("Authorization", format!("Bearer {}", self.token))
       .send()
       .await
       .unwrap()
-      .json()
+      .text()
       .await
-      .unwrap()
+      .unwrap();
+    #[cfg(debug_assertions)]
+    println!("Response wit: {}", &text);
+    from_str(&text).unwrap()
   }
 }
 
